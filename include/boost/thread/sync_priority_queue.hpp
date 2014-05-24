@@ -22,12 +22,13 @@ namespace boost
     bool empty();
     std::size_t size();
     ValueType pull();
-    void push(const ValueType&);
+    void push(const ValueType& elem);
 
-    bool try_push(const ValueType&);
-    bool try_pull(ValueType& dest);
+    bool try_pull(ValueType& dest); //Time point wait on mutex?
+    bool try_pull_no_wait(ValueType& dest);
+    bool try_push(const ValueType& elem);
 
-  private:
+  protected:
     atomic<bool> closed_;
     mutex q_mutex_;
     condition_variable is_empty_;
@@ -67,6 +68,49 @@ namespace boost
     lock_guard<mutex> lk(q_mutex_);
     pq_.push(elem);
     is_empty_.notify_one();
+  }
+
+  template<typename ValueType>
+  bool sync_priority_queue<ValueType>::try_pull(ValueType & dest)
+  {
+    unique_lock<mutex> lk(q_mutex_, try_to_lock);
+    if(lk.owns_lock())
+    {
+      while(pq_.empty())
+      {
+        is_empty_.wait(lk);
+      }
+      dest = pq_.top();
+      pq_.pop();
+      return true;
+    }
+    return false;
+  }
+
+  template<typename ValueType>
+  bool sync_priority_queue<ValueType>::try_pull_no_wait(ValueType & dest)
+  {
+    unique_lock<mutex> lk(q_mutex_, try_to_lock);
+    if(lk.owns_lock() && !pq_.empty())
+    {
+      dest = pq_.top();
+      pq_.pop();
+      return true;
+    }
+    return false;
+  }
+
+  template<typename ValueType>
+  bool sync_priority_queue<ValueType>::try_push(const ValueType & elem)
+  {
+    if(q_mutex_.try_lock())
+    {
+      pq_.push(elem);
+      q_mutex_.unlock();
+      is_empty_.notify_one();
+      return true;
+    }
+    return false;
   }
 
 } //end namespace
