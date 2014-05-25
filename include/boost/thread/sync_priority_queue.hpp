@@ -15,12 +15,12 @@ namespace boost
   class sync_priority_queue
   {
   public:
-    sync_priority_queue() : closed_(false) {}
+    sync_priority_queue() {}
     ~sync_priority_queue() {}
     BOOST_THREAD_NO_COPYABLE(sync_priority_queue)
 
-    bool empty();
-    std::size_t size();
+    bool empty() const;
+    std::size_t size() const;
     ValueType pull();
     void push(const ValueType& elem);
 
@@ -29,21 +29,20 @@ namespace boost
     bool try_push(const ValueType& elem);
 
   protected:
-    atomic<bool> closed_;
-    mutex q_mutex_;
+    mutable mutex q_mutex_;
     condition_variable is_empty_;
     std::priority_queue<ValueType> pq_;
   }; //end class
 
   template<typename ValueType>
-  bool sync_priority_queue<ValueType>::empty()
+  bool sync_priority_queue<ValueType>::empty() const
   {
     lock_guard<mutex> lk(q_mutex_);
     return pq_.empty();
   }
 
   template<typename ValueType>
-  size_t sync_priority_queue<ValueType>::size()
+  size_t sync_priority_queue<ValueType>::size() const
   {
     //lock_guard<mutex> lk(q_mutex_);
     return pq_.size();
