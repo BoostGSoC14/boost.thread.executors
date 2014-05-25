@@ -16,6 +16,8 @@ namespace boost
     T data;
     chrono::steady_clock::time_point tp_;
 
+    scheduled_type(T pdata, T ptp) : data(pdata), tp_(ptp) {}
+
     bool operator <(const scheduled_type<T> other) const
     {
       return this->data < other.data;
@@ -44,6 +46,19 @@ namespace boost
     bool try_push(const T& elem, chrono::steady_clock::duration dura);
 
   }; //end class
+
+  template<typename T>
+  void sync_timed_queue<T>::push(const T& elem, chrono::steady_clock::time_point tp)
+  {
+    parent::push(scheduled_type<T>(elem,tp));
+  }
+
+  template<typename T>
+  void sync_timed_queue<T>::push(const T& elem, chrono::steady_clock::duration dura)
+  {
+    const chrono::steady_clock::time_point tp = chrono::steady_clock::now() + dura;
+    parent::push(scheduled_type<T>(elem,tp));
+  }
 
 } //end namespace
 
