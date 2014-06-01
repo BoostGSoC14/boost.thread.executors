@@ -2,9 +2,14 @@
 #define BOOST_THREAD_SYNC_PRIORITY_QUEUE
 
 #include <queue>
-#include <boost/atomic.hpp>
+
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/condition_variable.hpp>
+
+#include <boost/chrono/duration.hpp>
+#include <boost/chrono/time_point.hpp>
+
+#include <boost/optional.hpp>
 
 #include <boost/config/abi_prefix.hpp>
 
@@ -21,12 +26,17 @@ namespace boost
 
     bool empty() const;
     std::size_t size() const;
-    ValueType pull();
-    void push(const ValueType& elem);
 
-    bool try_pull(ValueType& dest); //Time point wait on mutex?
-    bool try_pull_no_wait(ValueType& dest);
+    void push(const ValueType& elem);
     bool try_push(const ValueType& elem);
+
+    ValueType pull();
+    optional<ValueType> pull(chrono::steady_clock::time_point);
+    optional<ValueType> pull(chrono::steady_clock::duration);
+
+    optional<ValueType> try_pull(); //Time point wait on mutex?
+    optional<ValueType> try_pull_no_wait();
+
 
   protected:
     mutable mutex q_mutex_;
@@ -62,6 +72,30 @@ namespace boost
   }
 
   template<typename ValueType>
+  optional<ValueType>
+  sync_priority_queue<ValueType>::pull(chrono::steady_clock::time_point tp)
+  {
+    unique_lock<mutex> lk(q_mutex_);
+    while(pq_.empty())
+    {
+      if(is_empty_.wait_until(lk, tp) == cv_status::timeout )
+      {
+        return optional<ValueType>();
+      }
+    }
+    optional<ValueType> fst( pq_.top() );
+    pq_.pop();
+    return fst;
+  }
+
+  template<typename ValueType>
+  optional<ValueType>
+  sync_priority_queue<ValueType>::pull(chrono::steady_clock::duration dura)
+  {
+    pull(chrono::steady_clock::now() + dura);
+  }
+
+  template<typename ValueType>
   void sync_priority_queue<ValueType>::push(const ValueType & elem)
   {
     lock_guard<mutex> lk(q_mutex_);
@@ -70,7 +104,7 @@ namespace boost
   }
 
   template<typename ValueType>
-  bool sync_priority_queue<ValueType>::try_pull(ValueType & dest)
+  optional<ValueType> sync_priority_queue<ValueType>::try_pull()
   {
     unique_lock<mutex> lk(q_mutex_, try_to_lock);
     if(lk.owns_lock())
@@ -79,24 +113,24 @@ namespace boost
       {
         is_empty_.wait(lk);
       }
-      dest = pq_.top();
+      optional<ValueType> fst( pq_.top() );
       pq_.pop();
-      return true;
+      return fst;
     }
-    return false;
+    return optional<ValueType>();
   }
 
   template<typename ValueType>
-  bool sync_priority_queue<ValueType>::try_pull_no_wait(ValueType & dest)
+  optional<ValueType> sync_priority_queue<ValueType>::try_pull_no_wait()
   {
     unique_lock<mutex> lk(q_mutex_, try_to_lock);
     if(lk.owns_lock() && !pq_.empty())
     {
-      dest = pq_.top();
+      optional<ValueType> fst( pq_.top() );
       pq_.pop();
-      return true;
+      return fst;
     }
-    return false;
+    return optional<ValueType>();
   }
 
   template<typename ValueType>
