@@ -2,7 +2,9 @@
 #define BOOST_THREAD_SYNC_PRIORITY_QUEUE
 
 #include <queue>
+#include <exception>
 
+#include <boost/atomic.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/condition_variable.hpp>
 
@@ -25,20 +27,27 @@ namespace boost
     BOOST_THREAD_NO_COPYABLE(sync_priority_queue)
 
     bool empty() const;
+    void close();
+
+    bool is_closed() const {
+      return closed.load();
+    }
+
     std::size_t size() const;
 
     void push(const ValueType& elem);
     bool try_push(const ValueType& elem);
 
     ValueType pull();
-    optional<ValueType> pull(chrono::steady_clock::time_point);
-    optional<ValueType> pull(chrono::steady_clock::duration);
+    optional<ValueType> pull_until(chrono::steady_clock::time_point);
+    optional<ValueType> pull_for(chrono::steady_clock::duration);
 
     optional<ValueType> try_pull(); //Time point wait on mutex?
     optional<ValueType> try_pull_no_wait();
 
 
   protected:
+    atomic<bool> closed;
     mutable mutex q_mutex_;
     condition_variable is_empty_;
     std::priority_queue<ValueType> pq_;
@@ -59,11 +68,20 @@ namespace boost
   }
 
   template<typename ValueType>
+  void sync_priority_queue<ValueType>::close()
+  {
+    //lock_guard<mutex> lk(this->q_mutex_);
+    closed.store(true);
+    is_empty_.notify_all();
+  }
+
+  template<typename ValueType>
   ValueType sync_priority_queue<ValueType>::pull()
   {
     unique_lock<mutex> lk(q_mutex_);
     while(pq_.empty())
     {
+      if(closed.load()) throw std::exception();
       is_empty_.wait(lk);
     }
     ValueType first = pq_.top();
@@ -73,11 +91,12 @@ namespace boost
 
   template<typename ValueType>
   optional<ValueType>
-  sync_priority_queue<ValueType>::pull(chrono::steady_clock::time_point tp)
+  sync_priority_queue<ValueType>::pull_until(chrono::steady_clock::time_point tp)
   {
     unique_lock<mutex> lk(q_mutex_);
     while(pq_.empty())
     {
+      if(closed.load()) throw std::exception();
       if(is_empty_.wait_until(lk, tp) == cv_status::timeout )
       {
         return optional<ValueType>();
@@ -90,7 +109,7 @@ namespace boost
 
   template<typename ValueType>
   optional<ValueType>
-  sync_priority_queue<ValueType>::pull(chrono::steady_clock::duration dura)
+  sync_priority_queue<ValueType>::pull_for(chrono::steady_clock::duration dura)
   {
     pull(chrono::steady_clock::now() + dura);
   }
@@ -111,6 +130,7 @@ namespace boost
     {
       while(pq_.empty())
       {
+        if(closed.load()) throw std::exception();
         is_empty_.wait(lk);
       }
       optional<ValueType> fst( pq_.top() );
