@@ -41,6 +41,7 @@ namespace boost
     ValueType pull();
     optional<ValueType> pull_until(chrono::steady_clock::time_point);
     optional<ValueType> pull_for(chrono::steady_clock::duration);
+    optional<ValueType> pull_no_wait();
 
     optional<ValueType> try_pull(); //Time point wait on mutex?
     optional<ValueType> try_pull_no_wait();
@@ -112,6 +113,22 @@ namespace boost
   sync_priority_queue<ValueType>::pull_for(chrono::steady_clock::duration dura)
   {
     pull(chrono::steady_clock::now() + dura);
+  }
+
+  template<typename ValueType>
+  optional<ValueType> sync_priority_queue<ValueType>::pull_no_wait()
+  {
+    unique_lock<mutex> lk(q_mutex_);
+    if(pq_.empty())
+    {
+      return optional<ValueType>();
+    }
+    else
+    {
+      optional<ValueType> fst( pq_.top() );
+      pq_.pop();
+      return fst;
+    }
   }
 
   template<typename ValueType>
