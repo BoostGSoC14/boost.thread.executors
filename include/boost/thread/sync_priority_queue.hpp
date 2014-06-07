@@ -22,7 +22,7 @@ namespace boost
   class sync_priority_queue
   {
   public:
-    sync_priority_queue() {}
+    sync_priority_queue() : closed(false) {}
     ~sync_priority_queue() {}
     BOOST_THREAD_NO_COPYABLE(sync_priority_queue)
 
