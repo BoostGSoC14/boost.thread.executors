@@ -23,7 +23,8 @@ namespace boost
   {
   public:
     sync_priority_queue() : closed(false) {}
-    ~sync_priority_queue() {}
+    ~sync_priority_queue() { this->close(); }
+
     BOOST_THREAD_NO_COPYABLE(sync_priority_queue)
 
     bool empty() const;
@@ -112,7 +113,7 @@ namespace boost
   optional<ValueType>
   sync_priority_queue<ValueType>::pull_for(chrono::steady_clock::duration dura)
   {
-    pull(chrono::steady_clock::now() + dura);
+    return pull_until(chrono::steady_clock::now() + dura);
   }
 
   template<typename ValueType>
