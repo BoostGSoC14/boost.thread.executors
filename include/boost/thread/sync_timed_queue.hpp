@@ -44,7 +44,7 @@ namespace boost
     using super::empty;
 
     T pull();
-	bool try_pull(T& elem);
+    optional<T> try_pull();
 
     void push(const T& elem, time_point tp);
     void push(const T& elem, duration dura);
@@ -85,14 +85,15 @@ namespace boost
     unique_lock<mutex> lk(this->q_mutex_);
     while(this->pq_.empty() || (!this->pq_.empty() && this->pq_.top().time > Clock::now()) )
     {
-        if(this->pq_.empty())
-        {
-            this->is_empty_.wait(lk);
-        }
-        else
-        {
-            this->is_empty_.wait_until(lk,this->pq_.top().time);
-        }
+      if(this->pq_.empty())
+      {
+        if(this->closed.load()) throw std::exception();
+        this->is_empty_.wait(lk);
+      }
+      else
+      {
+        this->is_empty_.wait_until(lk,this->pq_.top().time);
+      }
     }
     const T temp = this->pq_.top().data;
     this->pq_.pop();
@@ -101,27 +102,28 @@ namespace boost
 
 
   template<typename T, typename Clock>
-  bool sync_timed_queue<T,Clock>::try_pull(T& dest)
+  optional<T> sync_timed_queue<T,Clock>::try_pull()
   {
     unique_lock<mutex> lk(this->q_mutex_);
     if(lk.owns_lock())
     {
-        while(this->pq_.empty() || (!this->pq_.empty() && this->pq_.top().time > Clock::now()) )
+      while(this->pq_.empty() || (!this->pq_.empty() && this->pq_.top().time > Clock::now()) )
+      {
+        if(this->pq_.empty())
         {
-            if(this->pq_.empty())
-            {
-                this->is_empty_.wait(lk);
-            }
-            else
-            {
-                this->is_empty._wait_until(lk,this->pq_.top().time);
-            }
+          if(this->closed.load()) throw std::exception();
+          this->is_empty_.wait(lk);
         }
-        dest = this->pq_.top().data;
-        this->pq_.pop();
-        return true;
+        else
+        {
+          this->is_empty._wait_until(lk,this->pq_.top().time);
+        }
+      }
+      optional<T> ret = optional<T>( this->pq_.top().data );
+      this->pq_.pop();
+      return ret;
     }
-    return false;
+    return optional<T>();
   }
 
 } //end namespace
