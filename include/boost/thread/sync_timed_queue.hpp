@@ -10,17 +10,17 @@
 namespace boost
 {
 
-  template<typename T>
+  template<typename T, typename TimePoint = chrono::steady_clock::time_point>
   struct scheduled_type
   {
     T data;
-    chrono::steady_clock::time_point tp_;
+    TimePoint time;
 
-    scheduled_type(T pdata, T ptp) : data(pdata), tp_(ptp) {}
+    scheduled_type(T pdata, TimePoint tp) : data(pdata), time(tp) {}
 
-    bool operator <(const scheduled_type<T> other) const
+    bool operator <(const scheduled_type<T,TimePoint> other) const
     {
-      return this->data < other.data;
+      return this->data > other.data;
     }
   }; //end struct
 
@@ -78,19 +78,19 @@ namespace boost
   T sync_timed_queue<T>::pull()
   {
     unique_lock<mutex> lk(this->q_mutex_);
-    while(this->pq.empty() || (!this->pq.empty() && this->pq.top().tp > clock::now()) )
+    while(this->pq_.empty() || (!this->pq_.empty() && this->pq_.top().time > clock::now()) )
     {
-        if(this->pq.empty)
+        if(this->pq_.empty())
         {
-            this->empty.wait(lk);
+            this->is_empty_.wait(lk);
         }
         else
         {
-            this->empty.wait_until(lk,this->pq.top().tp);
+            this->is_empty_.wait_until(lk,this->pq_.top().time);
         }
     }
-    const T temp = this->pq.top();
-    this->pq.pop();
+    const T temp = this->pq_.top().data;
+    this->pq_.pop();
     return temp;
   }
 
@@ -101,19 +101,19 @@ namespace boost
     unique_lock<mutex> lk(this->q_mutex_);
     if(lk.owns_lock())
     {
-        while(this->pq.empty() || (!this->pq.empty() && this->pq.top().tp > clock::now()) )
+        while(this->pq_.empty() || (!this->pq_.empty() && this->pq_.top().time > clock::now()) )
         {
-            if(this->pq.empty)
+            if(this->pq_.empty())
             {
-                this->empty.wait(lk);
+                this->is_empty_.wait(lk);
             }
             else
             {
-                this->empty.wait_until(lk,this->pq.top().tp);
+                this->is_empty._wait_until(lk,this->pq_.top().time);
             }
         }
-        dest = this->pq.top();
-        this->pq.pop();
+        dest = this->pq_.top().data;
+        this->pq_.pop();
         return true;
     }
     return false;
