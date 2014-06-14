@@ -83,16 +83,20 @@ namespace boost
   T sync_timed_queue<T,Clock>::pull()
   {
     unique_lock<mutex> lk(this->q_mutex_);
-    while(this->pq_.empty() || (!this->pq_.empty() && this->pq_.top().time > Clock::now()) )
+    while(1)
     {
       if(this->pq_.empty())
       {
         if(this->closed.load()) throw std::exception();
         this->is_empty_.wait(lk);
       }
-      else
+      else if(this->pq_.top().time > Clock::now())
       {
         this->is_empty_.wait_until(lk,this->pq_.top().time);
+      }
+      else
+      {
+        break;
       }
     }
     const T temp = this->pq_.top().data;
@@ -100,26 +104,29 @@ namespace boost
     return temp;
   }
 
-
   template<typename T, typename Clock>
   optional<T> sync_timed_queue<T,Clock>::try_pull()
   {
     unique_lock<mutex> lk(this->q_mutex_);
     if(lk.owns_lock())
     {
-      while(this->pq_.empty() || (!this->pq_.empty() && this->pq_.top().time > Clock::now()) )
+      while(1)
       {
         if(this->pq_.empty())
         {
           if(this->closed.load()) throw std::exception();
           this->is_empty_.wait(lk);
         }
-        else
+        else if(this->pq_.top().time > Clock::now())
         {
           this->is_empty._wait_until(lk,this->pq_.top().time);
         }
+        else
+        {
+          break;
+        }
       }
-      optional<T> ret = optional<T>( this->pq_.top().data );
+      const optional<T> ret = optional<T>( this->pq_.top().data );
       this->pq_.pop();
       return ret;
     }
