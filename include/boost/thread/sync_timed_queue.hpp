@@ -1,6 +1,7 @@
 #ifndef BOOST_THREAD_SYNC_TIMED_QUEUE_HPP
 #define BOOST_THREAD_SYNC_TIMED_QUEUE_HPP
 
+#include <boost/static_assert.hpp>
 #include <boost/chrono/time_point.hpp>
 #include <boost/thread/sync_priority_queue.hpp>
 #include <boost/thread/executors/work.hpp>
@@ -24,61 +25,65 @@ namespace boost
     }
   }; //end struct
 
-  template<typename T>
-  class sync_timed_queue : private sync_priority_queue<scheduled_type<T> >
+  template<typename T, typename Clock = chrono::steady_clock>
+  class sync_timed_queue : private sync_priority_queue<scheduled_type<T, typename Clock::time_point> >
   {
   public:
-    typedef chrono::steady_clock clock;
-    typedef sync_priority_queue<scheduled_type<T> > parent;
+    BOOST_STATIC_ASSERT(Clock::is_steady);
+    typedef typename Clock::duration duration;
+    typedef typename Clock::time_point time_point;
 
-    sync_timed_queue() : parent() {};
-	~sync_timed_queue() {} //Call parent?
+    typedef scheduled_type<T,typename Clock::time_point> stype;
+    typedef sync_priority_queue<scheduled_type<T,time_point> > super;
+
+    sync_timed_queue() : super() {};
+    ~sync_timed_queue() {} //Call super?
     BOOST_THREAD_NO_COPYABLE(sync_timed_queue)
 
-    using parent::size;
-    using parent::empty;
+    using super::size;
+    using super::empty;
 
     T pull();
 	bool try_pull(T& elem);
 
-    void push(const T& elem, clock::time_point tp);
-    void push(const T& elem, clock::duration dura);
-    bool try_push(const T& elem, clock::time_point tp);
-    bool try_push(const T& elem, clock::duration dura);
+    void push(const T& elem, time_point tp);
+    void push(const T& elem, duration dura);
+    bool try_push(const T& elem, time_point tp);
+    bool try_push(const T& elem, duration dura);
 
   }; //end class
 
-  template<typename T>
-  void sync_timed_queue<T>::push(const T& elem, clock::time_point tp)
+  template<typename T, typename Clock>
+  void sync_timed_queue<T,Clock>::push(const T& elem, time_point tp)
   {
-    parent::push(scheduled_type<T>(elem,tp));
+    super::push(stype(elem,tp));
   }
 
-  template<typename T>
-  void sync_timed_queue<T>::push(const T& elem, clock::duration dura)
+  template<typename T, typename Clock>
+  void sync_timed_queue<T,Clock>::push(const T& elem, duration dura)
   {
-    const chrono::steady_clock::time_point tp = clock::now() + dura;
-    parent::push(scheduled_type<T>(elem,tp));
+    const time_point tp = Clock::now() + dura;
+    super::push(stype(elem,tp));
   }
 
-  template<typename T>
-  bool sync_timed_queue<T>::try_push(const T& elem, clock::time_point tp)
+  template<typename T, typename Clock>
+  bool sync_timed_queue<T,Clock>::try_push(const T& elem, time_point tp)
   {
-    return parent::try_push(scheduled_type<T>(elem,tp));
+    return super::try_push(stype(elem,tp));
   }
 
-  template<typename T>
-  bool sync_timed_queue<T>::try_push(const T& elem, clock::duration dura)
+  template<typename T, typename Clock>
+  bool sync_timed_queue<T,Clock>::try_push(const T& elem, duration dura)
   {
-    const clock::time_point tp = clock::now() + dura;
-    return parent::try_push(scheduled_type<T>(elem,tp));
+    const time_point tp = Clock::now() + dura;
+    return super::try_push(stype(elem,tp));
   }
 
-  template<typename T>
-  T sync_timed_queue<T>::pull()
+  template<typename T, typename Clock>
+  T sync_timed_queue<T,Clock>::pull()
   {
     unique_lock<mutex> lk(this->q_mutex_);
-    while(this->pq_.empty() || (!this->pq_.empty() && this->pq_.top().time > clock::now()) )
+    while(this->pq_.empty() || (!this->pq_.empty() && this->pq_.top().time > Clock::now()) )
     {
         if(this->pq_.empty())
         {
@@ -95,13 +100,13 @@ namespace boost
   }
 
 
-  template<typename T>
-  bool sync_timed_queue<T>::try_pull(T& dest)
+  template<typename T, typename Clock>
+  bool sync_timed_queue<T,Clock>::try_pull(T& dest)
   {
     unique_lock<mutex> lk(this->q_mutex_);
     if(lk.owns_lock())
     {
-        while(this->pq_.empty() || (!this->pq_.empty() && this->pq_.top().time > clock::now()) )
+        while(this->pq_.empty() || (!this->pq_.empty() && this->pq_.top().time > Clock::now()) )
         {
             if(this->pq_.empty())
             {
