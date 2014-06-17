@@ -36,7 +36,7 @@ namespace boost
     {
       try
       {
-        std::function<void()> fn = this->workq.pull();
+        work fn = this->workq.pull();
         fn();
       }
       catch(std::exception&)
