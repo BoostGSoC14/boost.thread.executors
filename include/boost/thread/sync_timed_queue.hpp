@@ -21,7 +21,7 @@ namespace boost
 
     bool operator <(const scheduled_type<T,TimePoint> other) const
     {
-      return this->data > other.data;
+      return this->time > other.time;
     }
   }; //end struct
 
