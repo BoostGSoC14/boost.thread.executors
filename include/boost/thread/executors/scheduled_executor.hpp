@@ -14,33 +14,35 @@ namespace boost
     typedef typename Clock::time_point time_point;
   private:
     atomic<bool> closed;
-    thread scheduler;
     sync_timed_queue<work> workq;
+    thread scheduler;
   public:
-      scheduled_executor()
-        : scheduler(&scheduled_executor::scheduler_loop,this) {}
-      ~scheduled_executor();
-      void close();
-      void submit(work);
-      void submit_at(work, time_point);
-      void submit_after(work, duration);
+    scheduled_executor()
+      : scheduler(&scheduled_executor::scheduler_loop,this) {}
+    ~scheduled_executor() { this->close(); }
+
+    void close();
+    void submit(work);
+    void submit_at(work, time_point);
+    void submit_after(work, duration);
 
   private:
-      void scheduler_loop();
+    void scheduler_loop();
   };
 
   template<typename Clock>
   void scheduled_executor<Clock>::scheduler_loop()
   {
-    while(!this->closed.load())
+    while(!this->closed.load() || !this->workq.empty())
     {
       try
       {
         work fn = this->workq.pull();
         fn();
       }
-      catch(std::exception&)
+      catch(std::exception& err)
       {
+        std::cout << err.what() << std::endl;
         return;
       }
     }
