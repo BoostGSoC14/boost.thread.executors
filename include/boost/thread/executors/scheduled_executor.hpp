@@ -69,6 +69,6 @@ namespace boost
   template<typename Clock>
   void scheduled_executor<Clock>::submit_after(work w, duration dura)
   {
-    this->workq(w,dura);
+    this->workq.push(w,dura);
   }
 }
