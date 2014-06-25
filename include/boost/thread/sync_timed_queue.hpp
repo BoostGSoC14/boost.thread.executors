@@ -42,6 +42,8 @@ namespace boost
 
     using super::size;
     using super::empty;
+    using super::close;
+    using super::is_closed;
 
     T pull();
     optional<T> try_pull();

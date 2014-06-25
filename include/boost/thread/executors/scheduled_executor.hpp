@@ -52,6 +52,7 @@ namespace boost
   void scheduled_executor<Clock>::close()
   {
     this->closed.store(true);
+    this->workq.close();
     scheduler.join();
   }
 
