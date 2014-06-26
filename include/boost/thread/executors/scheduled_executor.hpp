@@ -5,7 +5,8 @@
 
 namespace boost
 {
-  template<typename Clock>
+
+  template<typename Clock = chrono::steady_clock>
   class scheduled_executor
   {
   public:
@@ -19,7 +20,10 @@ namespace boost
   public:
     scheduled_executor()
       : scheduler(&scheduled_executor::scheduler_loop,this) {}
-    ~scheduled_executor() { this->close(); }
+    ~scheduled_executor()
+    {
+      if(!this->closed()) this->close();
+    }
 
     void close();
     void submit(work);
