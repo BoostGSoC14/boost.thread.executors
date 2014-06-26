@@ -23,8 +23,8 @@ namespace boost
 
     void close();
     void submit(work);
-    void submit_at(work, time_point);
-    void submit_after(work, duration);
+    void submit_at(work, const time_point&);
+    void submit_after(work, const duration&);
 
   private:
     void scheduler_loop();
@@ -62,13 +62,13 @@ namespace boost
     this->workq.push(w,Clock::now());
   }
   template<typename Clock>
-  void scheduled_executor<Clock>::submit_at(work w, time_point tp)
+  void scheduled_executor<Clock>::submit_at(work w, const time_point& tp)
   {
     this->workq.push(w,tp);
   }
 
   template<typename Clock>
-  void scheduled_executor<Clock>::submit_after(work w, duration dura)
+  void scheduled_executor<Clock>::submit_after(work w, const duration& dura)
   {
     this->workq.push(w,dura);
   }

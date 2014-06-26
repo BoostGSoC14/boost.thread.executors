@@ -48,34 +48,34 @@ namespace boost
     T pull();
     optional<T> try_pull();
 
-    void push(const T& elem, time_point tp);
-    void push(const T& elem, duration dura);
-    bool try_push(const T& elem, time_point tp);
-    bool try_push(const T& elem, duration dura);
+    void push(const T& elem, const time_point& tp);
+    void push(const T& elem, const duration& dura);
+    bool try_push(const T& elem, const time_point& tp);
+    bool try_push(const T& elem, const duration& dura);
 
   }; //end class
 
   template<typename T, typename Clock>
-  void sync_timed_queue<T,Clock>::push(const T& elem, time_point tp)
+  void sync_timed_queue<T,Clock>::push(const T& elem, const time_point& tp)
   {
     super::push(stype(elem,tp));
   }
 
   template<typename T, typename Clock>
-  void sync_timed_queue<T,Clock>::push(const T& elem, duration dura)
+  void sync_timed_queue<T,Clock>::push(const T& elem, const duration& dura)
   {
     const time_point tp = Clock::now() + dura;
     super::push(stype(elem,tp));
   }
 
   template<typename T, typename Clock>
-  bool sync_timed_queue<T,Clock>::try_push(const T& elem, time_point tp)
+  bool sync_timed_queue<T,Clock>::try_push(const T& elem, const time_point& tp)
   {
     return super::try_push(stype(elem,tp));
   }
 
   template<typename T, typename Clock>
-  bool sync_timed_queue<T,Clock>::try_push(const T& elem, duration dura)
+  bool sync_timed_queue<T,Clock>::try_push(const T& elem, const duration& dura)
   {
     const time_point tp = Clock::now() + dura;
     return super::try_push(stype(elem,tp));
