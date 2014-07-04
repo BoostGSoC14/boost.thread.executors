@@ -18,6 +18,13 @@ namespace boost{
         _exec(ex),
         scheduler(&scheduler_adpator::scheduler_loop,this) {}
 
+    ~scheduler_adpator()
+    {
+      this->closed.store(true);
+      this->workq.close();
+      this->scheduler.join();
+    }
+
   private:
     typedef scheduled_executor<Clock> super;
     void scheduler_loop();
