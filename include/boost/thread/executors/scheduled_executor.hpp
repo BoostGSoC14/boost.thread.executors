@@ -1,6 +1,10 @@
+#ifndef SCHEDULED_EXECUTOR_HPP
+#define SCHEDULED_EXECUTOR_HPP
+
 #include <functional>
 #include <boost/atomic.hpp>
 #include <boost/thread/thread.hpp>
+#include <boost/thread/executors/work.hpp>
 #include <boost/thread/sync_timed_queue.hpp>
 
 namespace boost
@@ -13,16 +17,17 @@ namespace boost
     typedef std::function<void()> work;
     typedef typename Clock::duration duration;
     typedef typename Clock::time_point time_point;
-  private:
+  protected:
     atomic<bool> closed;
     sync_timed_queue<work> workq;
-    thread scheduler;
   public:
-    scheduled_executor()
-      : scheduler(&scheduled_executor::scheduler_loop,this) {}
-    ~scheduled_executor()
+
+    ~scheduled_executor() //virtual?
     {
-      if(!this->closed()) this->close();
+      if(!this->closed.load())
+      {
+        this->close();
+      }
     }
 
     void close();
@@ -30,34 +35,16 @@ namespace boost
     void submit_at(work, const time_point&);
     void submit_after(work, const duration&);
 
-  private:
-    void scheduler_loop();
+  protected:
+    scheduled_executor() : closed(false) {}
   };
 
-  template<typename Clock>
-  void scheduled_executor<Clock>::scheduler_loop()
-  {
-    while(!this->closed.load() || !this->workq.empty())
-    {
-      try
-      {
-        work fn = this->workq.pull();
-        fn();
-      }
-      catch(std::exception& err)
-      {
-        std::cout << err.what() << std::endl;
-        return;
-      }
-    }
-  }
 
   template<typename Clock>
   void scheduled_executor<Clock>::close()
   {
     this->closed.store(true);
     this->workq.close();
-    scheduler.join();
   }
 
   template<typename Clock>
@@ -77,3 +64,5 @@ namespace boost
     this->workq.push(w,dura);
   }
 }
+
+#endif
