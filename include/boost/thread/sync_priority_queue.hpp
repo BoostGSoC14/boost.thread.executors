@@ -23,16 +23,18 @@ namespace boost
   {
   public:
     sync_priority_queue() : closed(false) {}
-    ~sync_priority_queue() { this->close(); }
-
-    BOOST_THREAD_NO_COPYABLE(sync_priority_queue)
+    ~sync_priority_queue()
+    {
+      if(!this->closed.load())
+      {
+        this->close();
+      }
+    }
 
     bool empty() const;
     void close();
 
-    bool is_closed() const {
-      return closed.load();
-    }
+    bool is_closed() const { return closed.load(); }
 
     std::size_t size() const;
 
@@ -53,6 +55,14 @@ namespace boost
     mutable mutex q_mutex_;
     condition_variable is_empty_;
     std::priority_queue<ValueType> pq_;
+
+  private:
+    sync_priority_queue(const sync_priority_queue&);
+    sync_priority_queue& operator= (const sync_priority_queue&);
+#ifndef BOOST_NO_CXX11_RVALUE_REFERENCES
+    sync_priority_queue(sync_priority_queue&&);
+    sync_priority_queue& operator= (sync_priority_queue&&);
+#endif
   }; //end class
 
   template<typename ValueType>
@@ -72,7 +82,6 @@ namespace boost
   template<typename ValueType>
   void sync_priority_queue<ValueType>::close()
   {
-    //lock_guard<mutex> lk(this->q_mutex_);
     closed.store(true);
     is_empty_.notify_all();
   }
