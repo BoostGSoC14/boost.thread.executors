@@ -199,10 +199,10 @@ namespace boost
   template<typename ValueType>
   bool sync_priority_queue<ValueType>::try_push(const ValueType & elem)
   {
-    if(q_mutex_.try_lock())
+    unique_lock<mutex> lk(q_mutex_, try_to_lock);
+    if(lk.owns_lock())
     {
       pq_.push(elem);
-      q_mutex_.unlock();
       is_empty_.notify_one();
       return true;
     }
@@ -213,10 +213,10 @@ namespace boost
   template<typename ValueType>
   bool sync_priority_queue<ValueType>::try_push(ValueType&& elem)
   {
-    if(q_mutex_.try_lock())
+    unique_lock<mutex> lk(q_mutex_, try_to_lock);
+    if(lk.owns_lock())
     {
       pq_.emplace(elem);
-      q_mutex_.unlock();
       is_empty_.notify_one();
       return true;
     }
