@@ -41,6 +41,11 @@ namespace boost
     void push(const ValueType& elem);
     bool try_push(const ValueType& elem);
 
+#ifndef BOOST_NO_CXX11_RVALUE_REFERENCES
+    void push(ValueType&& elem);
+    bool try_push(ValueType&& elem);
+#endif
+
     ValueType pull();
     optional<ValueType> pull_until(chrono::steady_clock::time_point);
     optional<ValueType> pull_for(chrono::steady_clock::duration);
@@ -149,6 +154,17 @@ namespace boost
     is_empty_.notify_one();
   }
 
+#ifndef BOOST_NO_CXX11_RVALUE_REFERENCES
+  template<typename ValueType>
+  void sync_priority_queue<ValueType>::push(ValueType&& elem)
+  {
+    lock_guard<mutex> lk(q_mutex_);
+    pq_.emplace(elem);
+    is_empty_.notify_one();
+  }
+
+#endif
+
   template<typename ValueType>
   optional<ValueType> sync_priority_queue<ValueType>::try_pull()
   {
@@ -192,6 +208,21 @@ namespace boost
     }
     return false;
   }
+
+#ifndef BOOST_NO_CXX11_RVALUE_REFERENCES
+  template<typename ValueType>
+  bool sync_priority_queue<ValueType>::try_push(ValueType&& elem)
+  {
+    if(q_mutex_.try_lock())
+    {
+      pq_.emplace(elem);
+      q_mutex_.unlock();
+      is_empty_.notify_one();
+      return true;
+    }
+    return false;
+  }
+#endif
 
 } //end namespace
 
