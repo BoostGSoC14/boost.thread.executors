@@ -133,7 +133,7 @@ namespace boost
   template<typename ValueType>
   optional<ValueType> sync_priority_queue<ValueType>::pull_no_wait()
   {
-    unique_lock<mutex> lk(q_mutex_);
+    lock_guard<mutex> lk(q_mutex_);
     if(pq_.empty())
     {
       return optional<ValueType>();
