@@ -18,25 +18,43 @@
 namespace boost
 {
 
-  template <typename ValueType>
+  template <class ValueType,
+            class Container = std::vector<ValueType>,
+            class Compare = std::less<typename Container::value_type> >
   class sync_priority_queue
   {
   public:
-    sync_priority_queue() : closed(false) {}
+    sync_priority_queue() : _closed(false) {}
+
     ~sync_priority_queue()
     {
-      if(!this->closed.load())
+      if(!_closed.load())
       {
         this->close();
       }
     }
 
-    bool empty() const;
-    void close();
+    bool empty() const
+    {
+      lock_guard<mutex> lk(_qmutex);
+      return _pq.empty();
+    }
 
-    bool is_closed() const { return closed.load(); }
+    void close()
+    {
+      _closed.store(true);
+      _qempty.notify_all();
+    }
 
-    std::size_t size() const;
+    bool is_closed() const
+    {
+      return _closed.load();
+    }
+
+    std::size_t size() const
+    {
+      return _pq.size();
+    }
 
     void push(const ValueType& elem);
     bool try_push(const ValueType& elem);
@@ -51,15 +69,14 @@ namespace boost
     optional<ValueType> pull_for(chrono::steady_clock::duration);
     optional<ValueType> pull_no_wait();
 
-    optional<ValueType> try_pull(); //Time point wait on mutex?
+    optional<ValueType> try_pull();
     optional<ValueType> try_pull_no_wait();
 
-
   protected:
-    atomic<bool> closed;
-    mutable mutex q_mutex_;
-    condition_variable is_empty_;
-    std::priority_queue<ValueType> pq_;
+    atomic<bool> _closed;
+    mutable mutex _qmutex;
+    condition_variable _qempty;
+    std::priority_queue<ValueType,Container,Compare> _pq;
 
   private:
     sync_priority_queue(const sync_priority_queue&);
@@ -70,154 +87,135 @@ namespace boost
 #endif
   }; //end class
 
-  template<typename ValueType>
-  bool sync_priority_queue<ValueType>::empty() const
+  template <class T,class Container, class Cmp>
+  T sync_priority_queue<T,Container,Cmp>::pull()
   {
-    lock_guard<mutex> lk(q_mutex_);
-    return pq_.empty();
-  }
-
-  template<typename ValueType>
-  size_t sync_priority_queue<ValueType>::size() const
-  {
-    //lock_guard<mutex> lk(q_mutex_);
-    return pq_.size();
-  }
-
-  template<typename ValueType>
-  void sync_priority_queue<ValueType>::close()
-  {
-    closed.store(true);
-    is_empty_.notify_all();
-  }
-
-  template<typename ValueType>
-  ValueType sync_priority_queue<ValueType>::pull()
-  {
-    unique_lock<mutex> lk(q_mutex_);
-    while(pq_.empty())
+    unique_lock<mutex> lk(_qmutex);
+    while(_pq.empty())
     {
-      if(closed.load()) throw std::exception();
-      is_empty_.wait(lk);
+      if(_closed.load()) throw std::exception();
+      _qempty.wait(lk);
     }
-    ValueType first = pq_.top();
-    pq_.pop();
+    T first = _pq.top();
+    _pq.pop();
     return first;
   }
 
-  template<typename ValueType>
-  optional<ValueType>
-  sync_priority_queue<ValueType>::pull_until(chrono::steady_clock::time_point tp)
+  template <class T, class Cont,class Cmp>
+  optional<T>
+  sync_priority_queue<T,Cont,Cmp>::pull_until(chrono::steady_clock::time_point tp)
   {
-    unique_lock<mutex> lk(q_mutex_);
-    while(pq_.empty())
+    unique_lock<mutex> lk(_qmutex);
+    while(_pq.empty())
     {
-      if(closed.load()) throw std::exception();
-      if(is_empty_.wait_until(lk, tp) == cv_status::timeout )
+      if(_closed.load()) throw std::exception();
+      if(_qempty.wait_until(lk, tp) == cv_status::timeout )
       {
-        return optional<ValueType>();
+        return optional<T>();
       }
     }
-    optional<ValueType> fst( pq_.top() );
-    pq_.pop();
+    optional<T> fst( _pq.top() );
+    _pq.pop();
     return fst;
   }
 
-  template<typename ValueType>
-  optional<ValueType>
-  sync_priority_queue<ValueType>::pull_for(chrono::steady_clock::duration dura)
+  template <class T, class Cont,class Cmp>
+  optional<T>
+  sync_priority_queue<T,Cont,Cmp>::pull_for(chrono::steady_clock::duration dura)
   {
     return pull_until(chrono::steady_clock::now() + dura);
   }
 
-  template<typename ValueType>
-  optional<ValueType> sync_priority_queue<ValueType>::pull_no_wait()
+  template <class T, class Container,class Cmp>
+  optional<T>
+  sync_priority_queue<T,Container,Cmp>::pull_no_wait()
   {
-    lock_guard<mutex> lk(q_mutex_);
-    if(pq_.empty())
+    lock_guard<mutex> lk(_qmutex);
+    if(_pq.empty())
     {
-      return optional<ValueType>();
+      return optional<T>();
     }
     else
     {
-      optional<ValueType> fst( pq_.top() );
-      pq_.pop();
+      optional<T> fst( _pq.top() );
+      _pq.pop();
       return fst;
     }
   }
 
-  template<typename ValueType>
-  void sync_priority_queue<ValueType>::push(const ValueType & elem)
+  template <class T, class Container,class Cmp>
+  void sync_priority_queue<T,Container,Cmp>::push(const T& elem)
   {
-    lock_guard<mutex> lk(q_mutex_);
-    pq_.push(elem);
-    is_empty_.notify_one();
+    lock_guard<mutex> lk(_qmutex);
+    _pq.push(elem);
+    _qempty.notify_one();
   }
 
 #ifndef BOOST_NO_CXX11_RVALUE_REFERENCES
-  template<typename ValueType>
-  void sync_priority_queue<ValueType>::push(ValueType&& elem)
+  template <class T, class Container,class Cmp>
+  void sync_priority_queue<T,Container,Cmp>::push(T&& elem)
   {
-    lock_guard<mutex> lk(q_mutex_);
-    pq_.emplace(elem);
-    is_empty_.notify_one();
+    lock_guard<mutex> lk(_qmutex);
+    _pq.emplace(elem);
+    _qempty.notify_one();
   }
-
 #endif
 
-  template<typename ValueType>
-  optional<ValueType> sync_priority_queue<ValueType>::try_pull()
+  template <class T, class Container,class Cmp>
+  optional<T>
+  sync_priority_queue<T,Container,Cmp>::try_pull()
   {
-    unique_lock<mutex> lk(q_mutex_, try_to_lock);
+    unique_lock<mutex> lk(_qmutex, try_to_lock);
     if(lk.owns_lock())
     {
-      while(pq_.empty())
+      while(_pq.empty())
       {
-        if(closed.load()) throw std::exception();
-        is_empty_.wait(lk);
+        if(_closed.load()) throw std::exception();
+        _qempty.wait(lk);
       }
-      optional<ValueType> fst( pq_.top() );
-      pq_.pop();
+      optional<T> fst( _pq.top() );
+      _pq.pop();
       return fst;
     }
-    return optional<ValueType>();
+    return optional<T>();
   }
 
-  template<typename ValueType>
-  optional<ValueType> sync_priority_queue<ValueType>::try_pull_no_wait()
+  template <class T, class Container,class Cmp>
+  optional<T>
+  sync_priority_queue<T,Container,Cmp>::try_pull_no_wait()
   {
-    unique_lock<mutex> lk(q_mutex_, try_to_lock);
-    if(lk.owns_lock() && !pq_.empty())
+    unique_lock<mutex> lk(_qmutex, try_to_lock);
+    if(lk.owns_lock() && !_pq.empty())
     {
-      optional<ValueType> fst( pq_.top() );
-      pq_.pop();
+      optional<T> fst( _pq.top() );
+      _pq.pop();
       return fst;
     }
-    return optional<ValueType>();
+    return optional<T>();
   }
 
-  template<typename ValueType>
-  bool sync_priority_queue<ValueType>::try_push(const ValueType & elem)
+  template <class T, class Container,class Cmp>
+  bool sync_priority_queue<T,Container,Cmp>::try_push(const T& elem)
   {
-    unique_lock<mutex> lk(q_mutex_, try_to_lock);
+    unique_lock<mutex> lk(_qmutex, try_to_lock);
     if(lk.owns_lock())
     {
-      pq_.push(elem);
-      is_empty_.notify_one();
+      _pq.push(elem);
+      _qempty.notify_one();
       return true;
     }
     return false;
   }
 
 #ifndef BOOST_NO_CXX11_RVALUE_REFERENCES
-  template<typename ValueType>
-  bool sync_priority_queue<ValueType>::try_push(ValueType&& elem)
+  template <class T, class Container,class Cmp>
+  bool sync_priority_queue<T,Container,Cmp>::try_push(T&& elem)
   {
-    unique_lock<mutex> lk(q_mutex_, try_to_lock);
+    unique_lock<mutex> lk(_qmutex, try_to_lock);
     if(lk.owns_lock())
     {
-      pq_.emplace(elem);
-      is_empty_.notify_one();
+      _pq.emplace(elem);
+      _qempty.notify_one();
       return true;
     }
     return false;
