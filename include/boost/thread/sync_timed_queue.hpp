@@ -38,7 +38,6 @@ namespace boost
 
     sync_timed_queue() : super() {};
     ~sync_timed_queue() {} //Call super?
-    BOOST_THREAD_NO_COPYABLE(sync_timed_queue)
 
     using super::size;
     using super::empty;
@@ -47,12 +46,19 @@ namespace boost
 
     T pull();
     optional<T> try_pull();
+    optional<T> pull_no_wait();
 
     void push(const T& elem, const time_point& tp);
     void push(const T& elem, const duration& dura);
     bool try_push(const T& elem, const time_point& tp);
     bool try_push(const T& elem, const duration& dura);
-
+  private:
+    sync_timed_queue(const sync_timed_queue&);
+    sync_timed_queue& operator=(const sync_timed_queue&);
+#ifndef BOOST_NO_CXX11_RVALUE_REFERENCES
+    sync_timed_queue(sync_timed_queue&&);
+    sync_timed_queue& operator=(sync_timed_queue&&);
+#endif
   }; //end class
 
   template<typename T, typename Clock>
@@ -84,55 +90,75 @@ namespace boost
   template<typename T, typename Clock>
   T sync_timed_queue<T,Clock>::pull()
   {
-    unique_lock<mutex> lk(this->q_mutex_);
+    unique_lock<mutex> lk(super::_qmutex);
     while(1)
     {
-      if(this->pq_.empty())
+      if(super::_pq.empty())
       {
-        if(this->closed.load()) throw std::exception();
-        this->is_empty_.wait(lk);
+        if(super::_closed.load()) throw std::exception();
+        super::_qempty.wait(lk);
       }
-      else if(this->pq_.top().time > Clock::now())
+      else if(super::_pq.top().time > Clock::now())
       {
-        this->is_empty_.wait_until(lk,this->pq_.top().time);
+        super::_qempty.wait_until(lk,super::_pq.top().time);
       }
       else
       {
         break;
       }
     }
-    const T temp = this->pq_.top().data;
-    this->pq_.pop();
+    const T temp = super::_pq.top().data;
+    super::_pq.pop();
     return temp;
   }
 
   template<typename T, typename Clock>
   optional<T> sync_timed_queue<T,Clock>::try_pull()
   {
-    unique_lock<mutex> lk(this->q_mutex_);
+    unique_lock<mutex> lk(super::_qmutex);
     if(lk.owns_lock())
     {
       while(1)
       {
-        if(this->pq_.empty())
+        if(super::_pq.empty())
         {
-          if(this->closed.load()) throw std::exception();
-          this->is_empty_.wait(lk);
+          if(super::_closed.load()) throw std::exception();
+          super::_qempty.wait(lk);
         }
-        else if(this->pq_.top().time > Clock::now())
+        else if(super::_pq.top().time > Clock::now())
         {
-          this->is_empty._wait_until(lk,this->pq_.top().time);
+          super::_qempty.wait_until(lk,super::_pq.top().time);
         }
         else
         {
           break;
         }
       }
-      const optional<T> ret = optional<T>( this->pq_.top().data );
-      this->pq_.pop();
+      const optional<T> ret = optional<T>( super::_pq.top().data );
+      super::_pq.pop();
       return ret;
     }
     return optional<T>();
+  }
+
+  template<typename T, typename Clock>
+  optional<T> sync_timed_queue<T,Clock>::pull_no_wait()
+  {
+    lock_guard<mutex> lk(super::_qmutex);
+    if(super::_pq.empty())
+    {
+      return optional<T>();
+    }
+    else if(super::_pq.top().time > Clock::now())
+    {
+      return optional<T>();
+    }
+    else
+    {
+      const optional<T> ret = optional<T>( super::_pq.top().data );
+      super::_pq.pop();
+      return ret;
+    }
   }
 
 } //end namespace
