@@ -32,7 +32,7 @@ namespace boost{
   template<typename Clock>
   void scheduling_adpator<Clock>::scheduler_loop()
   {
-    while(!super::_closed.load() || !super::_workq.empty())
+    while(!super::_workq.is_closed() || !super::_workq.empty())
     {
       try
       {

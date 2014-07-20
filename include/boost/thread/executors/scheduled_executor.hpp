@@ -18,15 +18,14 @@ namespace boost
     typedef typename Clock::duration duration;
     typedef typename Clock::time_point time_point;
   protected:
-    atomic<bool> _closed;
     sync_timed_queue<work,Clock> _workq;
 
-    scheduled_executor() : _closed(false) {}
+    scheduled_executor() {}
   public:
 
     ~scheduled_executor() //virtual?
     {
-      if(!_closed.load())
+      if(!_workq.is_closed())
       {
         this->close();
       }
@@ -34,7 +33,6 @@ namespace boost
 
     void close()
     {
-      _closed.store(true);
       _workq.close();
     }
 
