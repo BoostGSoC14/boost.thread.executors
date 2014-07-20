@@ -1,5 +1,5 @@
-#ifndef SCHEDULER_ADAPTOR
-#define SCHEDULER_ADAPTOR
+#ifndef SCHEDULED_THREAD_POOL_HPP
+#define SCHEDULED_THREAD_POOL_HPP
 
 #include <boost/thread/executors/scheduled_executor.hpp>
 
@@ -8,6 +8,7 @@ namespace boost{
   template <typename Clock = chrono::steady_clock>
   class scheduled_thread_pool : public scheduled_executor<Clock>
   {
+  private:
     std::vector<thread> _workers;
   public:
 
@@ -16,34 +17,33 @@ namespace boost{
       for(size_t i = 0; i < num_threads; i++)
       {
         this->_workers.push_back(
-          boost::move(thread(&scheduled_thread_pool::worker_loop,this))
-        );
+              boost::move(thread(&scheduled_thread_pool::worker_loop, this))
+              );
       }
     }
 
     ~scheduled_thread_pool()
     {
-      this->closed.store(true);
-      this->workq.close();
+      this->close();
       for(int i = 0; i < _workers.size(); i++)
       {
-        this->_workers[i].join();
+        _workers[i].join();
       }
     }
 
   private:
     typedef scheduled_executor<Clock> super;
     void worker_loop();
-  };
+  }; //end class
 
   template<typename Clock>
   void scheduled_thread_pool<Clock>::worker_loop()
   {
-    while(!this->closed.load() || !this->workq.empty())
+    while(!super::_closed.load() || !super::_workq.empty())
     {
       try
       {
-        typename super::work fn = this->workq.pull();
+        typename super::work fn = super::_workq.pull();
         fn();
       }
       catch(std::exception& err)
@@ -53,7 +53,6 @@ namespace boost{
       }
     }
   }
-
 } //end boost
 #endif
 

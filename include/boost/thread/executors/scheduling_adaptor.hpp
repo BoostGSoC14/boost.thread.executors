@@ -1,5 +1,5 @@
-#ifndef SCHEDULER_ADAPTOR
-#define SCHEDULER_ADAPTOR
+#ifndef SCHEDULING_ADAPTOR_HPP
+#define SCHEDULING_ADAPTOR_HPP
 
 #include <boost/thread/executors/executor.hpp>
 #include <boost/thread/executors/scheduled_executor.hpp>
@@ -7,38 +7,37 @@
 namespace boost{
 
   template <typename Clock = chrono::steady_clock>
-  class scheduler_adpator : public scheduled_executor<Clock>
+  class scheduling_adpator : public scheduled_executor<Clock>
   {
     executor& _exec;
-    thread scheduler;
+    thread _scheduler;
   public:
 
-    scheduler_adpator(executor& ex)
+    scheduling_adpator(executor& ex)
       : super(),
         _exec(ex),
-        scheduler(&scheduler_adpator::scheduler_loop,this) {}
+        _scheduler(&scheduling_adpator::scheduler_loop, this) {}
 
-    ~scheduler_adpator()
+    ~scheduling_adpator()
     {
-      this->closed.store(true);
-      this->workq.close();
-      this->scheduler.join();
+      this->close();
+      _scheduler.join();
     }
 
   private:
     typedef scheduled_executor<Clock> super;
     void scheduler_loop();
-  };
+  }; //end class
 
   template<typename Clock>
-  void scheduler_adpator<Clock>::scheduler_loop()
+  void scheduling_adpator<Clock>::scheduler_loop()
   {
-    while(!this->closed.load() || !this->workq.empty())
+    while(!super::_closed.load() || !super::_workq.empty())
     {
       try
       {
         typename super::work fn = this->workq.pull();
-        this->_exec.add(fn);
+        _exec.add(fn);
       }
       catch(std::exception& err)
       {

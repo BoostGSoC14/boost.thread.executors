@@ -18,51 +18,41 @@ namespace boost
     typedef typename Clock::duration duration;
     typedef typename Clock::time_point time_point;
   protected:
-    atomic<bool> closed;
-    sync_timed_queue<work> workq;
+    atomic<bool> _closed;
+    sync_timed_queue<work,Clock> _workq;
+
+    scheduled_executor() : _closed(false) {}
   public:
 
     ~scheduled_executor() //virtual?
     {
-      if(!this->closed.load())
+      if(!_closed.load())
       {
         this->close();
       }
     }
 
-    void close();
-    void submit(work);
-    void submit_at(work, const time_point&);
-    void submit_after(work, const duration&);
+    void close()
+    {
+      _closed.store(true);
+      _workq.close();
+    }
 
-  protected:
-    scheduled_executor() : closed(false) {}
-  };
+    void submit(work w)
+    {
+      _workq.push(w, Clock::now());
+    }
 
+    void submit_at(work w, const time_point& tp)
+    {
+      _workq.push(w, tp);
+    }
 
-  template<typename Clock>
-  void scheduled_executor<Clock>::close()
-  {
-    this->closed.store(true);
-    this->workq.close();
-  }
-
-  template<typename Clock>
-  void scheduled_executor<Clock>::submit(work w)
-  {
-    this->workq.push(w,Clock::now());
-  }
-  template<typename Clock>
-  void scheduled_executor<Clock>::submit_at(work w, const time_point& tp)
-  {
-    this->workq.push(w,tp);
-  }
-
-  template<typename Clock>
-  void scheduled_executor<Clock>::submit_after(work w, const duration& dura)
-  {
-    this->workq.push(w,dura);
-  }
-}
+    void submit_after(work w, const duration& dura)
+    {
+      _workq.push(w, dura);
+    }
+  }; //end class
+} //end namespace
 
 #endif
