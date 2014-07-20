@@ -1,19 +1,19 @@
 #ifndef SCHEDULING_ADAPTOR_HPP
 #define SCHEDULING_ADAPTOR_HPP
 
-#include <boost/thread/executors/executor.hpp>
 #include <boost/thread/executors/scheduled_executor.hpp>
 
 namespace boost{
 
-  template <typename Clock = chrono::steady_clock>
+  template <typename Executor, typename Clock = chrono::steady_clock>
   class scheduling_adpator : public scheduled_executor<Clock>
   {
-    executor& _exec;
+  private:
+    Executor& _exec;
     thread _scheduler;
   public:
 
-    scheduling_adpator(executor& ex)
+    scheduling_adpator(Executor& ex)
       : super(),
         _exec(ex),
         _scheduler(&scheduling_adpator::scheduler_loop, this) {}
@@ -29,15 +29,15 @@ namespace boost{
     void scheduler_loop();
   }; //end class
 
-  template<typename Clock>
-  void scheduling_adpator<Clock>::scheduler_loop()
+  template<typename Executor, typename Clock>
+  void scheduling_adpator<Executor,Clock>::scheduler_loop()
   {
     while(!super::_workq.is_closed() || !super::_workq.empty())
     {
       try
       {
-        typename super::work fn = this->workq.pull();
-        _exec.add(fn);
+        typename super::work fn = super::_workq.pull();
+        _exec.submit(fn);
       }
       catch(std::exception& err)
       {
@@ -46,7 +46,5 @@ namespace boost{
       }
     }
   }
-
 } //end boost
 #endif
-

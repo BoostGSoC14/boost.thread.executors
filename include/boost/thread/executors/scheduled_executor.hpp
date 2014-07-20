@@ -5,6 +5,7 @@
 #include <boost/atomic.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/thread/executors/work.hpp>
+#include <boost/thread/executors/executor.hpp>
 #include <boost/thread/sync_timed_queue.hpp>
 
 namespace boost
@@ -52,5 +53,4 @@ namespace boost
     }
   }; //end class
 } //end namespace
-
 #endif
