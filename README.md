@@ -96,7 +96,10 @@ You may need to define `-DBOOST_THREAD_VERSION=4` for some tests if it complains
     1. The memory_order is set to default so performance could be very poor. Especially on non-Intel architectures which will tend insert memory barrier instructions. The memory order could possibly be relaxed to improve performance. I require that after `_closed.store(true)` is executed all reads subsequent to `_closed` will read as `true`. I suppose this would mean `_closed.store(true)` shouldn't be re-ordered and no other instructions should be re-ordered from before this instruction to after. I'm not sure as to which memory_order this maps to.
     2. If the `atomic<bool>` isn't lock-free then we are essentially back to the original problem and might as well wait for the queue_mutex instead.
     
- * Move `sync_timed_queue` into `detail`. This is a fairly specialized queue that few people will probably have little use for. By moving into `detail` I can include the bare minimum of functions which I require in `scheduled_executor`. It will also save me from testing functions which I, and probably no one else, will ever use. 
+ * Move `sync_timed_queue` into `detail`. This is a fairly specialized queue that few people will probably have little use for. By moving into `detail` I can include the bare minimum of functions which I require in `scheduled_executor`. It will also save me from testing functions which I, and probably no one else, will ever use.
+ 
+ * Add a `priority_executor` class. This would be trivial to implement given my knowledge of the problem and the fact that `sync_priority_queue` is already complete.
+ * Add an overload to `boost::aysnc` so that it takes an executor an argument.
 
 ## TODO 
 * Write more tests rigorous tests.
