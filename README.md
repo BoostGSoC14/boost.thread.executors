@@ -87,6 +87,17 @@ Please link against at least boost 1.55.0
 
 You may need to define `-DBOOST_THREAD_VERSION=4` for some tests if it complains about `future` not being found.
 
+## Possible Changes & RFCs
+
+ * `sync_timed_queue` and `scheduled_executor` have template parameters for a `Clock`. This defaults to `boost::chrono::steady_clock`. There is a static assert to ensure that `Clock` is steady. This is also satisfied by `high_resolution_clock` however the extra effort and complexity doesn't seems having this additional option as most people probably won't use it. The only counter argument would be that `cpu_time` clocks can also be used as `Clock`. This would give better guarantees on when closures will be executed as preemption of threads by the OS is no longer a factor like with `steady_clock` and `high_resolution_clock` which are wall clocks. 
+ 
+ * There is an `atomic<bool> _closed` in the sync_queues which allows for immediate closing of the queue without waiting for the queue mutex. The problems with this is include:
+ 
+    1. The memory_order is set to default so performance could be very poor. Especially on non-Intel architectures which will tend insert memory barrier instructions. The memory order could possibly be relaxed to improve performance. I require that after `_closed.store(true)` is executed all reads subsequent to `_closed` will read as `true`. I suppose this would mean `_closed.store(true)` shouldn't be re-ordered and no other instructions should be re-ordered from before this instruction to after. I'm not sure as to which memory_order this maps to.
+    2. If the `atomic<bool>` isn't lock-free then we are essentially back to the original problem and might as well wait for the queue_mutex instead.
+    
+ * Move `sync_timed_queue` into `detail`. This is a fairly specialized queue that few people will probably have little use for. By moving into `detail` I can include the bare minimum of functions which I require in `scheduled_executor`. It will also save me from testing functions which I, and probably no one else, will ever use. 
+
 ## TODO 
 * Write more tests rigorous tests.
 * Integrate into Boost.Build
