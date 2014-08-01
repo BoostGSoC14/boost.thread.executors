@@ -16,7 +16,7 @@ void fn(int x)
 void test_timing(const int n)
 {
   //This function should take n seconds to execute.
-  boost::scheduled_thread_pool<> se(4);
+  boost::scheduled_thread_pool se(4);
 
   for(int i = 1; i <= n; i++)
     se.submit_after(std::bind(fn,i), seconds(i));

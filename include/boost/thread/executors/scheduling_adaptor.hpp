@@ -5,8 +5,8 @@
 
 namespace boost{
 
-  template <typename Executor, typename Clock = chrono::steady_clock>
-  class scheduling_adpator : public scheduled_executor<Clock>
+  template <typename Executor>
+  class scheduling_adpator : public scheduled_executor
   {
   private:
     Executor& _exec;
@@ -25,12 +25,12 @@ namespace boost{
     }
 
   private:
-    typedef scheduled_executor<Clock> super;
+    typedef scheduled_executor super;
     void scheduler_loop();
   }; //end class
 
-  template<typename Executor, typename Clock>
-  void scheduling_adpator<Executor,Clock>::scheduler_loop()
+  template<typename Executor>
+  void scheduling_adpator<Executor>::scheduler_loop()
   {
     while(!super::_workq.is_closed() || !super::_workq.empty())
     {

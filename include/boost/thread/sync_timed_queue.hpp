@@ -1,40 +1,39 @@
 #ifndef BOOST_THREAD_SYNC_TIMED_QUEUE_HPP
 #define BOOST_THREAD_SYNC_TIMED_QUEUE_HPP
 
-#include <boost/static_assert.hpp>
 #include <boost/chrono/time_point.hpp>
 #include <boost/thread/sync_priority_queue.hpp>
-#include <boost/thread/executors/work.hpp>
 
 #include <boost/config/abi_prefix.hpp>
 
 namespace boost
 {
 
-  template<typename T, typename TimePoint = chrono::steady_clock::time_point>
+  template<typename T>
   struct scheduled_type
   {
+    typedef chrono::steady_clock::time_point time_point;
     T data;
-    TimePoint time;
+    time_point time;
 
-    scheduled_type(T pdata, TimePoint tp) : data(pdata), time(tp) {}
+    scheduled_type(T pdata, time_point tp) : data(pdata), time(tp) {}
 
-    bool operator <(const scheduled_type<T,TimePoint> other) const
+    bool operator <(const scheduled_type<T> other) const
     {
       return this->time > other.time;
     }
   }; //end struct
 
-  template<typename T, typename Clock = chrono::steady_clock>
-  class sync_timed_queue : private sync_priority_queue<scheduled_type<T, typename Clock::time_point> >
+  template<typename T>
+  class sync_timed_queue : private sync_priority_queue<scheduled_type<T> >
   {
   public:
-    BOOST_STATIC_ASSERT(Clock::is_steady);
-    typedef typename Clock::duration duration;
-    typedef typename Clock::time_point time_point;
+    typedef typename chrono::steady_clock clock; 
+    typedef typename clock::duration duration;
+    typedef typename clock::time_point time_point;
 
-    typedef scheduled_type<T,typename Clock::time_point> stype;
-    typedef sync_priority_queue<scheduled_type<T,time_point> > super;
+    typedef scheduled_type<T> stype;
+    typedef sync_priority_queue<scheduled_type<T> > super;
 
     sync_timed_queue() : super() {};
     ~sync_timed_queue() {} //Call super?
@@ -61,34 +60,34 @@ namespace boost
 #endif
   }; //end class
 
-  template<typename T, typename Clock>
-  void sync_timed_queue<T,Clock>::push(const T& elem, const time_point& tp)
+  template<typename T>
+  void sync_timed_queue<T>::push(const T& elem, const time_point& tp)
   {
     super::push(stype(elem,tp));
   }
 
-  template<typename T, typename Clock>
-  void sync_timed_queue<T,Clock>::push(const T& elem, const duration& dura)
+  template<typename T>
+  void sync_timed_queue<T>::push(const T& elem, const duration& dura)
   {
-    const time_point tp = Clock::now() + dura;
+    const time_point tp = clock::now() + dura;
     super::push(stype(elem,tp));
   }
 
-  template<typename T, typename Clock>
-  bool sync_timed_queue<T,Clock>::try_push(const T& elem, const time_point& tp)
+  template<typename T>
+  bool sync_timed_queue<T>::try_push(const T& elem, const time_point& tp)
   {
     return super::try_push(stype(elem,tp));
   }
 
-  template<typename T, typename Clock>
-  bool sync_timed_queue<T,Clock>::try_push(const T& elem, const duration& dura)
+  template<typename T>
+  bool sync_timed_queue<T>::try_push(const T& elem, const duration& dura)
   {
-    const time_point tp = Clock::now() + dura;
+    const time_point tp = clock::now() + dura;
     return super::try_push(stype(elem,tp));
   }
 
-  template<typename T, typename Clock>
-  T sync_timed_queue<T,Clock>::pull()
+  template<typename T>
+  T sync_timed_queue<T>::pull()
   {
     unique_lock<mutex> lk(super::_qmutex);
     while(1)
@@ -98,7 +97,7 @@ namespace boost
         if(super::_closed.load()) throw std::exception();
         super::_qempty.wait(lk);
       }
-      else if(super::_pq.top().time > Clock::now())
+      else if(super::_pq.top().time > clock::now())
       {
         super::_qempty.wait_until(lk,super::_pq.top().time);
       }
@@ -112,8 +111,8 @@ namespace boost
     return temp;
   }
 
-  template<typename T, typename Clock>
-  optional<T> sync_timed_queue<T,Clock>::try_pull()
+  template<typename T>
+  optional<T> sync_timed_queue<T>::try_pull()
   {
     unique_lock<mutex> lk(super::_qmutex);
     if(lk.owns_lock())
@@ -125,7 +124,7 @@ namespace boost
           if(super::_closed.load()) throw std::exception();
           super::_qempty.wait(lk);
         }
-        else if(super::_pq.top().time > Clock::now())
+        else if(super::_pq.top().time > clock::now())
         {
           super::_qempty.wait_until(lk,super::_pq.top().time);
         }
@@ -141,15 +140,15 @@ namespace boost
     return optional<T>();
   }
 
-  template<typename T, typename Clock>
-  optional<T> sync_timed_queue<T,Clock>::pull_no_wait()
+  template<typename T>
+  optional<T> sync_timed_queue<T>::pull_no_wait()
   {
     lock_guard<mutex> lk(super::_qmutex);
     if(super::_pq.empty())
     {
       return optional<T>();
     }
-    else if(super::_pq.top().time > Clock::now())
+    else if(super::_pq.top().time > clock::now())
     {
       return optional<T>();
     }

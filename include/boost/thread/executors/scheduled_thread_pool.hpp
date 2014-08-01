@@ -3,10 +3,9 @@
 
 #include <boost/thread/executors/scheduled_executor.hpp>
 
-namespace boost{
-
-  template <typename Clock = chrono::steady_clock>
-  class scheduled_thread_pool : public scheduled_executor<Clock>
+namespace boost
+{
+  class scheduled_thread_pool : public scheduled_executor
   {
   private:
     std::vector<thread> _workers;
@@ -25,19 +24,18 @@ namespace boost{
     ~scheduled_thread_pool()
     {
       this->close();
-      for(int i = 0; i < _workers.size(); i++)
+      for(size_t i = 0; i < _workers.size(); i++)
       {
         _workers[i].join();
       }
     }
 
   private:
-    typedef scheduled_executor<Clock> super;
+    typedef scheduled_executor super;
     void worker_loop();
   }; //end class
 
-  template<typename Clock>
-  void scheduled_thread_pool<Clock>::worker_loop()
+  void scheduled_thread_pool::worker_loop()
   {
     while(!super::_workq.is_closed() || !super::_workq.empty())
     {

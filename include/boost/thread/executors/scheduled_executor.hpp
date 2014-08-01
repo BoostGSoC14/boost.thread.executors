@@ -10,16 +10,15 @@
 
 namespace boost
 {
-
-  template<typename Clock = chrono::steady_clock>
   class scheduled_executor
   {
   public:
     typedef std::function<void()> work;
-    typedef typename Clock::duration duration;
-    typedef typename Clock::time_point time_point;
+    typedef typename chrono::steady_clock clock;
+    typedef typename clock::duration duration;
+    typedef typename clock::time_point time_point;
   protected:
-    sync_timed_queue<work,Clock> _workq;
+    sync_timed_queue<work> _workq;
 
     scheduled_executor() {}
   public:
@@ -39,7 +38,7 @@ namespace boost
 
     void submit(work w)
     {
-      _workq.push(w, Clock::now());
+      _workq.push(w, clock::now());
     }
 
     void submit_at(work w, const time_point& tp)
