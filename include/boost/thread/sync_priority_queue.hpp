@@ -24,6 +24,8 @@ namespace boost
   class sync_priority_queue
   {
   public:
+    typedef chrono::steady_clock clock;
+  public:
     sync_priority_queue() : _closed(false) {}
 
     ~sync_priority_queue()
@@ -65,8 +67,8 @@ namespace boost
 #endif
 
     ValueType pull();
-    optional<ValueType> pull_until(chrono::steady_clock::time_point);
-    optional<ValueType> pull_for(chrono::steady_clock::duration);
+    optional<ValueType> pull_until(const clock::time_point&);
+    optional<ValueType> pull_for(const clock::duration&);
     optional<ValueType> pull_no_wait();
 
     optional<ValueType> try_pull();
@@ -103,7 +105,7 @@ namespace boost
 
   template <class T, class Cont,class Cmp>
   optional<T>
-  sync_priority_queue<T,Cont,Cmp>::pull_until(chrono::steady_clock::time_point tp)
+  sync_priority_queue<T,Cont,Cmp>::pull_until(const clock::time_point& tp)
   {
     unique_lock<mutex> lk(_qmutex);
     while(_pq.empty())
@@ -121,9 +123,9 @@ namespace boost
 
   template <class T, class Cont,class Cmp>
   optional<T>
-  sync_priority_queue<T,Cont,Cmp>::pull_for(chrono::steady_clock::duration dura)
+  sync_priority_queue<T,Cont,Cmp>::pull_for(const clock::duration& dura)
   {
-    return pull_until(chrono::steady_clock::now() + dura);
+    return pull_until(clock::now() + dura);
   }
 
   template <class T, class Container,class Cmp>
