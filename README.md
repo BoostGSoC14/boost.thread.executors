@@ -71,7 +71,7 @@ Given this pattern I found that it was best to abstract the queuing logic into a
 
 ## Caveats 
 
-This release currently requires `C++11` in order to use `std::function<void()>` as the closure type. This is only until all of the bugs in `executors::work` have been ironed out. 
+This release currently requires still `C++11` ~~in order to use `std::function<void()>` as the closure type. This is only until all of the bugs in `executors::work` have been ironed out.~~ for moved semantics when create `vector<thread>`.
 
 ## Tests & Examples
 
