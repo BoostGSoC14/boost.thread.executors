@@ -1,11 +1,10 @@
 #ifndef SCHEDULED_EXECUTOR_HPP
 #define SCHEDULED_EXECUTOR_HPP
 
-#include <functional>
 #include <boost/atomic.hpp>
+#include <boost/function.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/thread/executors/work.hpp>
-#include <boost/thread/executors/executor.hpp>
 #include <boost/thread/sync_timed_queue.hpp>
 
 namespace boost
@@ -13,7 +12,7 @@ namespace boost
   class scheduled_executor
   {
   public:
-    typedef std::function<void()> work;
+    typedef function<void()> work;
     typedef typename chrono::steady_clock clock;
     typedef typename clock::duration duration;
     typedef typename clock::time_point time_point;

@@ -1,10 +1,8 @@
-#include <iostream>
-#include <functional>
-
+#include <boost/bind.hpp>
 #include <boost/chrono.hpp>
 #include <boost/thread/executors/scheduled_thread_pool.hpp>
 
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 
 using namespace boost::chrono;
 
@@ -19,8 +17,10 @@ void test_timing(const int n)
   boost::scheduled_thread_pool se(4);
 
   for(int i = 1; i <= n; i++)
-    se.submit_after(std::bind(fn,i), seconds(i));
-
+  {
+    se.submit_after(boost::bind(fn,i), seconds(i));
+    se.submit_after(boost::bind(fn,i), milliseconds(i*100));
+  }
 }
 
 int main()

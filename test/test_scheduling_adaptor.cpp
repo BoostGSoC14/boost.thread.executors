@@ -1,11 +1,9 @@
-#include <iostream>
-#include <functional>
-
+#include <boost/function.hpp>
 #include <boost/thread/executors/executor.hpp>
 #include <boost/thread/executors/basic_thread_pool.hpp>
 #include <boost/thread/executors/scheduling_adaptor.hpp>
 
-#include <boost/detail/lightweight_test.hpp>
+#include <boost/core/lightweight_test.hpp>
 
 using namespace boost::chrono;
 
@@ -20,8 +18,12 @@ void test_timing(const int n)
 {
     thread_pool tp(4);
     boost::scheduling_adpator<thread_pool> sa(tp);
-    for(int i = 0; i <= n; i++)
-        sa.submit_after(std::bind(fn,i),seconds(i));
+    for(int i = 1; i <= n; i++)
+    {
+        sa.submit_after(boost::bind(fn,i),seconds(i));
+        sa.submit_after(boost::bind(fn,i), milliseconds(i*100));
+    }
+
 }
 
 int main()
