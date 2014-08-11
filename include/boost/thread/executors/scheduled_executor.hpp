@@ -5,7 +5,7 @@
 #include <boost/function.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/thread/executors/work.hpp>
-#include <boost/thread/sync_timed_queue.hpp>
+#include <boost/thread/detail/sync_timed_queue.hpp>
 
 namespace boost
 {

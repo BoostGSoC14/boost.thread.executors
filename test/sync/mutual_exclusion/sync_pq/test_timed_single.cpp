@@ -2,7 +2,7 @@
 
 #include <boost/thread.hpp>
 #include <boost/chrono.hpp>
-#include <boost/thread/sync_timed_queue.hpp>
+#include <boost/thread/detail/sync_timed_queue.hpp>
 
 #include <boost/detail/lightweight_test.hpp>
 
