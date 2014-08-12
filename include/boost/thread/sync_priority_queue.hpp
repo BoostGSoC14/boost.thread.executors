@@ -44,6 +44,7 @@ namespace boost
 
     void close()
     {
+      lock_guard<mutex> lk(_qmutex);
       _closed.store(true);
       _qempty.notify_all();
     }

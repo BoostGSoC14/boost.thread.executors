@@ -1,5 +1,6 @@
 #define BOOST_THREAD_VERSION 4
 
+#include <exception>
 #include <boost/thread/future.hpp>
 #include <boost/thread/barrier.hpp>
 #include <boost/chrono.hpp>
@@ -110,10 +111,65 @@ void test_both()
     BOOST_TEST_EQ(pq.size(), 0);
 }
 
+void push_range(const int begin, const int end, sync_pq* q)
+{
+    for(int i = begin; i < end; i++)
+    {
+        q->push(i);
+    }
+}
+
+void atomic_pull(boost::atomic<int>* sum, sync_pq* pq)
+{
+    while(1)
+    {
+        try{
+            const int val = pq->pull();
+            sum->fetch_add(val);
+        }
+        catch(std::exception& e ){
+            return;
+        }
+    }
+}
+
+void compute_sum(const int n)
+{
+    const int limit = 1000;
+    sync_pq pq;
+    BOOST_TEST(pq.empty());
+    boost::future<void> futs1[limit/n];
+    boost::future<void> futs2[limit/n];
+    for(int i = 0; i < n; i++)
+    {
+        futs1[i] = boost::async(boost::launch::async, boost::bind(push_range, i*(limit/n)+1, (i+1)*(limit/n)+1, &pq));
+    }
+    boost::atomic<int> sum(0);
+    for(int i = 0; i < n; i++)
+    {
+        futs2[i] = boost::async(boost::launch::async, boost::bind(atomic_pull, &sum, &pq));
+        
+    }
+    for(int i = 0; i < n; i++)
+    {
+        futs1[i].wait();
+    }
+    //Wait until all enqueuing is done before closing.
+    pq.close();
+    BOOST_TEST(pq.is_closed());
+    for(int i = 0; i < n; i++)
+    {
+        futs2[i].wait();
+    }
+    BOOST_TEST(pq.empty());
+    BOOST_TEST_EQ(sum.load(), limit*(limit+1)/2);
+}
+
 int main()
 {
     test_pull();
     test_push();
     test_both();
+    compute_sum(5);
     return boost::report_errors();
 }
