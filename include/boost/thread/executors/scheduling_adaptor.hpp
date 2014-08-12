@@ -24,6 +24,11 @@ namespace boost{
       _scheduler.join();
     }
 
+    Executor& underlying_executor()
+    {
+        return _exec;
+    }
+
   private:
     typedef scheduled_executor super;
     void scheduler_loop();
