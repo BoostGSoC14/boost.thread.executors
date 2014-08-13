@@ -138,8 +138,8 @@ void compute_sum(const int n)
     const int limit = 1000;
     sync_pq pq;
     BOOST_TEST(pq.empty());
-    boost::future<void> futs1[limit/n];
-    boost::future<void> futs2[limit/n];
+    boost::future<void> futs1[n];
+    boost::future<void> futs2[n];
     for(int i = 0; i < n; i++)
     {
         futs1[i] = boost::async(boost::launch::async, boost::bind(push_range, i*(limit/n)+1, (i+1)*(limit/n)+1, &pq));
@@ -170,6 +170,8 @@ int main()
     test_pull();
     test_push();
     test_both();
+    compute_sum(1);
     compute_sum(5);
+    compute_sum(50);
     return boost::report_errors();
 }
