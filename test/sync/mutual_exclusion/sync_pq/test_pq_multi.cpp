@@ -1,51 +1,28 @@
-#define BOOST_THREAD_VERSION 4
-
 #include <exception>
-#include <boost/thread/future.hpp>
+
+#include <boost/thread/thread.hpp>
 #include <boost/thread/barrier.hpp>
-#include <boost/chrono.hpp>
 #include <boost/thread/sync_priority_queue.hpp>
 
-#include <boost/detail/lightweight_test.hpp>
-
-using namespace boost::chrono;
+#include <boost/core/lightweight_test.hpp>
  
 typedef boost::sync_priority_queue<int> sync_pq;
 
-struct call_push
+int call_pull(sync_pq* q, boost::barrier* go)
 {
-  sync_pq& _pq;
-  boost::barrier& _go;
-  int _num;
+    go->wait();
+    return q->pull();
 
-  call_push(sync_pq &q, boost::barrier& go, int n) : _pq(q), _go(go), _num(n) {}
+}
 
-  typedef void result_type;
-  void operator()()
-  {
-    _go.count_down_and_wait();
-    _pq.push(_num);
-  }
-};
-
-struct call_pull
+void call_push(sync_pq* q, boost::barrier* go, int val)
 {
-  sync_pq& _pq;
-  boost::barrier& _go;
+    go->wait();
+    q->push(val);
+}
 
-  call_pull(sync_pq& q, boost::barrier& go) : _pq(q), _go(go) {}
-
-  typedef int result_type;
-  int operator()()
-  {
-    _go.count_down_and_wait();
-    return _pq.pull();
-  }
-};
-
-void test_pull()
+void test_pull(const int n)
 {
-    const int n = 4;
     sync_pq pq;
     BOOST_TEST(pq.empty());
     for(int i  = 0; i < n; i++)
@@ -53,125 +30,171 @@ void test_pull()
         pq.push(i);
     }
     BOOST_TEST(!pq.empty());
-    BOOST_TEST_EQ(pq.size(),n);
-
+    BOOST_TEST_EQ(pq.size(), n);
+    pq.close();
+    BOOST_TEST(pq.is_closed());
     boost::barrier b(n);
-    boost::future<int> futs[n];
+    boost::thread_group tg;
     for(int i = 0; i < n; i++)
     {
-        futs[i] = boost::async(boost::launch::async, call_pull(pq,b));
+        tg.create_thread(boost::bind(call_pull, &pq, &b));
     }
-    for(int i = 0; i < n; i++)
-    {
-        futs[i].get();
-    }
+    tg.join_all();
     BOOST_TEST(pq.empty());
 }
 
-void test_push()
+void test_push(const int n)
 {
-    const int n = 4;
     sync_pq pq;
     BOOST_TEST(pq.empty());
 
     boost::barrier b(n);
-    boost::future<void> futs[n];
+    boost::thread_group tg;
     for(int i  = 0; i < n; i++)
     {
-        futs[i] = boost::async(boost::launch::async, call_push(pq,b,i));
+        tg.create_thread(boost::bind(call_push, &pq, &b, i));
     }
-    for(int i = 0; i < n; i++)
-    {
-        futs[i].wait();
-    }
+    tg.join_all();
     BOOST_TEST(!pq.empty());
-    BOOST_TEST_EQ(pq.size(),n);
+    BOOST_TEST_EQ(pq.size(), n);
 }
 
-void test_both()
+void test_both(const int n)
 {
-    const int n = 4;
     sync_pq pq;
     BOOST_TEST(pq.empty());
 
     boost::barrier b(2*n);
-    boost::future<int> futs1[n];
-    boost::future<void> futs2[n];
+    boost::thread_group tg;
     for(int i  = 0; i < n; i++)
     {
-        futs1[i] = boost::async(boost::launch::async, call_pull(pq,b));
-        futs2[i] = boost::async(boost::launch::async, call_push(pq,b,i));
+        tg.create_thread(boost::bind(call_pull, &pq, &b));
+        tg.create_thread(boost::bind(call_push, &pq, &b, i));
     }
-    for(int i = 0; i < n; i++)
-    {
-        futs1[i].wait();
-        futs2[i].wait();
-    }
+    tg.join_all();
     BOOST_TEST(pq.empty());
     BOOST_TEST_EQ(pq.size(), 0);
 }
 
-void push_range(const int begin, const int end, sync_pq* q)
+void push_range(sync_pq* q, const int begin, const int end)
 {
     for(int i = begin; i < end; i++)
-    {
         q->push(i);
-    }
 }
 
-void atomic_pull(boost::atomic<int>* sum, sync_pq* pq)
+void atomic_pull(sync_pq* q, boost::atomic<int>* sum)
 {
     while(1)
     {
         try{
-            const int val = pq->pull();
+            const int val = q->pull();
             sum->fetch_add(val);
         }
         catch(std::exception& e ){
-            return;
+            break;
         }
     }
 }
 
+/**
+ * This test computes the sum of the first N integers upto $limit using
+ * $n threads for the push operation and $n threads for the pull and count
+ * operation. The push operation push a range of numbers on the queue while
+ * the pull operation pull from the queue and increments an atomic int.
+ * At the end of execution the value of atomic<int> $sum should be the same
+ * as n*(n+1)/2 as this is the closed form solution to this problem.
+ */
 void compute_sum(const int n)
 {
     const int limit = 1000;
     sync_pq pq;
     BOOST_TEST(pq.empty());
-    boost::future<void> futs1[n];
-    boost::future<void> futs2[n];
-    for(int i = 0; i < n; i++)
-    {
-        futs1[i] = boost::async(boost::launch::async, boost::bind(push_range, i*(limit/n)+1, (i+1)*(limit/n)+1, &pq));
-    }
     boost::atomic<int> sum(0);
+    boost::thread_group tg1;
+    boost::thread_group tg2;
     for(int i = 0; i < n; i++)
     {
-        futs2[i] = boost::async(boost::launch::async, boost::bind(atomic_pull, &sum, &pq));
-        
+        tg1.create_thread(boost::bind(push_range, &pq, i*(limit/n)+1, (i+1)*(limit/n)+1));
+        tg2.create_thread(boost::bind(atomic_pull, &pq, &sum));
     }
-    for(int i = 0; i < n; i++)
-    {
-        futs1[i].wait();
-    }
-    //Wait until all enqueuing is done before closing.
-    pq.close();
+    tg1.join_all();
+    pq.close();  //Wait until all enqueuing is done before closing.
     BOOST_TEST(pq.is_closed());
-    for(int i = 0; i < n; i++)
-    {
-        futs2[i].wait();
-    }
+    tg2.join_all();
     BOOST_TEST(pq.empty());
     BOOST_TEST_EQ(sum.load(), limit*(limit+1)/2);
 }
 
+void move_between_queues(sync_pq* q1, sync_pq* q2)
+{
+    while(1){
+        try{
+            const int val = q1->pull();
+            q2->push(val);
+        }
+        catch(std::exception& e){
+            break;
+        }
+    }
+}
+
+/**
+ * This test computes the sum of the first N integers upto $limit by moving
+ * numbers between 2 sync_priority_queues. A range of numbers are pushed onto
+ * one queue by $n threads while $n threads pull from this queue and push onto
+ * another sync_pq. At the end the main thread ensures the the values in the
+ * second queue are in proper order and then sums all the values from this
+ * queue. The sum should match n*(n+1)/2, the closed form solution to this 
+ * problem.
+ */
+void sum_with_moving(const int n)
+{
+    const int limit = 1000;
+    sync_pq pq1;
+    sync_pq pq2;
+    BOOST_TEST(pq1.empty());
+    BOOST_TEST(pq2.empty());
+    boost::thread_group tg1;
+    boost::thread_group tg2;
+    for(int i = 0; i < n; i++)
+    {
+        tg1.create_thread(boost::bind(push_range, &pq1, i*(limit/n)+1, (i+1)*(limit/n)+1));
+        tg2.create_thread(boost::bind(move_between_queues, &pq1, &pq2));
+    }
+    tg1.join_all();
+    pq1.close();  //Wait until all enqueuing is done before closing.
+    BOOST_TEST(pq1.is_closed());
+    tg2.join_all();
+    BOOST_TEST(pq1.empty());
+    BOOST_TEST(!pq2.empty());
+    int sum = 0;
+    for(int i = 1000; i > 0; i--){
+        const int val = pq2.pull();
+        BOOST_TEST_EQ(i,val);
+        sum += val;
+    }
+    BOOST_TEST(pq2.empty());
+    BOOST_TEST_EQ(sum, limit*(limit+1)/2);
+}
+
 int main()
 {
-    test_pull();
-    test_push();
-    test_both();
+    for(int i = 1; i <= 64; i *= 2)
+    {
+        test_pull(i);
+        test_push(i);
+        test_both(i);
+    }
+    //These numbers must divide 1000
     compute_sum(1);
-    compute_sum(5);
+    compute_sum(4);
+    compute_sum(10);
+    compute_sum(25);
     compute_sum(50);
+    sum_with_moving(1);
+    sum_with_moving(4);
+    sum_with_moving(10);
+    sum_with_moving(25);
+    sum_with_moving(50);
     return boost::report_errors();
 }
