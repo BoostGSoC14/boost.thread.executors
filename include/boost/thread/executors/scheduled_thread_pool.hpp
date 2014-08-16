@@ -8,26 +8,21 @@ namespace boost
   class scheduled_thread_pool : public scheduled_executor
   {
   private:
-    std::vector<thread> _workers;
+    thread_group _workers;
   public:
 
     scheduled_thread_pool(size_t num_threads) : super()
     {
       for(size_t i = 0; i < num_threads; i++)
       {
-        this->_workers.push_back(
-              boost::move(thread(&scheduled_thread_pool::worker_loop, this))
-              );
+        _workers.create_thread(bind(&scheduled_thread_pool::worker_loop, this));
       }
     }
 
     ~scheduled_thread_pool()
     {
       this->close();
-      for(size_t i = 0; i < _workers.size(); i++)
-      {
-        _workers[i].join();
-      }
+      _workers.join_all();
     }
 
   private:
