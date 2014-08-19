@@ -36,7 +36,7 @@ namespace boost
     {
       try
       {
-        typename super::work fn = super::_workq.pull();
+        super::work fn = super::_workq.pull();
         fn();
       }
       catch(std::exception& err)
