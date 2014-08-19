@@ -13,9 +13,9 @@ namespace boost
   {
   public:
     typedef function<void()> work;
-    typedef typename chrono::steady_clock clock;
-    typedef typename clock::duration duration;
-    typedef typename clock::time_point time_point;
+    typedef chrono::steady_clock clock;
+    typedef clock::duration duration;
+    typedef clock::time_point time_point;
   protected:
     sync_timed_queue<work> _workq;
 
