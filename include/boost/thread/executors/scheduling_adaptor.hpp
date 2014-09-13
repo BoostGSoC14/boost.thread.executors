@@ -1,12 +1,12 @@
 #ifndef SCHEDULING_ADAPTOR_HPP
 #define SCHEDULING_ADAPTOR_HPP
 
-#include <boost/thread/executors/scheduled_executor.hpp>
+#include <boost/thread/detail/scheduled_executor_base.hpp>
 
 namespace boost{
 
   template <typename Executor>
-  class scheduling_adpator : public scheduled_executor
+  class scheduling_adpator : public detail::scheduled_executor_base
   {
   private:
     Executor& _exec;
@@ -30,7 +30,7 @@ namespace boost{
     }
 
   private:
-    typedef scheduled_executor super;
+    typedef scheduled_executor_base super;
     void scheduler_loop();
   }; //end class
 

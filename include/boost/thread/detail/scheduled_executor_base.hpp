@@ -4,25 +4,26 @@
 #include <boost/atomic.hpp>
 #include <boost/function.hpp>
 #include <boost/thread/thread.hpp>
-#include <boost/thread/executors/work.hpp>
 #include <boost/thread/detail/sync_timed_queue.hpp>
 
 namespace boost
 {
-  class scheduled_executor
+namespace detail
+{
+  class scheduled_executor_base
   {
   public:
-    typedef function<void()> work;
+    typedef boost::function<void()> work;
     typedef chrono::steady_clock clock;
     typedef clock::duration duration;
     typedef clock::time_point time_point;
   protected:
     sync_timed_queue<work> _workq;
 
-    scheduled_executor() {}
+    scheduled_executor_base() {}
   public:
 
-    ~scheduled_executor() //virtual?
+    ~scheduled_executor_base() //virtual?
     {
       if(!_workq.is_closed())
       {
@@ -50,5 +51,6 @@ namespace boost
       _workq.push(w, dura);
     }
   }; //end class
-} //end namespace
+} //end detail namespace
+} //end boost namespace
 #endif

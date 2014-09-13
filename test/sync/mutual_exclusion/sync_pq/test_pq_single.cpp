@@ -2,15 +2,17 @@
 
 #include <boost/thread.hpp>
 #include <boost/chrono.hpp>
-#include <boost/thread/sync_priority_queue.hpp>
+#include <boost/thread/detail/sync_priority_queue.hpp>
 
 #include <boost/detail/lightweight_test.hpp>
 
 using namespace boost::chrono;
 
+typedef boost::detail::sync_priority_queue<int> sync_pq;
+
 void test_pull_for()
 {
-  boost::sync_priority_queue<int> pq;
+  sync_pq pq;
   steady_clock::time_point start = steady_clock::now();
   boost::optional<int> val = pq.pull_for(milliseconds(500));
   steady_clock::duration diff = steady_clock::now() - start;
@@ -20,7 +22,7 @@ void test_pull_for()
 
 void test_pull_until()
 {
-  boost::sync_priority_queue<int> pq;
+  sync_pq pq;
   steady_clock::time_point start = steady_clock::now();
   boost::optional<int> val = pq.pull_until(start + milliseconds(500));
   steady_clock::duration diff = steady_clock::now() - start;
@@ -30,7 +32,7 @@ void test_pull_until()
 
 void test_pull_no_wait()
 {
-  boost::sync_priority_queue<int> pq;
+  sync_pq pq;
   steady_clock::time_point start = steady_clock::now();
   boost::optional<int> val = pq.pull_no_wait();
   steady_clock::duration diff = steady_clock::now() - start;
@@ -40,7 +42,7 @@ void test_pull_no_wait()
 
 void test_pull_for_when_not_empty()
 {
-  boost::sync_priority_queue<int> pq;
+  sync_pq pq;
   pq.push(1);
   steady_clock::time_point start = steady_clock::now();
   boost::optional<int> val = pq.pull_for(milliseconds(500));
@@ -51,7 +53,7 @@ void test_pull_for_when_not_empty()
 
 void test_pull_until_when_not_empty()
 {
-  boost::sync_priority_queue<int> pq;
+  sync_pq pq;
   pq.push(1);
   steady_clock::time_point start = steady_clock::now();
   boost::optional<int> val = pq.pull_until(start + milliseconds(500));
@@ -62,7 +64,7 @@ void test_pull_until_when_not_empty()
 
 int main()
 {
-  boost::sync_priority_queue<int> pq;
+  sync_pq pq;
   BOOST_TEST(pq.empty());
   BOOST_TEST(!pq.is_closed());
   BOOST_TEST_EQ(pq.size(), 0);

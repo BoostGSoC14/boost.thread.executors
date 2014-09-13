@@ -7,9 +7,11 @@
 
 using namespace boost::chrono;
 
+typedef boost::detail::sync_timed_queue<int> sync_tq;
+
 void test_all()
 {
-  boost::sync_timed_queue<int> pq;
+  sync_tq pq;
   BOOST_TEST(pq.empty());
   BOOST_TEST(!pq.is_closed());
   BOOST_TEST_EQ(pq.size(), 0);
@@ -41,7 +43,7 @@ void test_all()
 
 void test_all_with_try()
 {
-  boost::sync_timed_queue<int> pq;
+  sync_tq pq;
   BOOST_TEST(pq.empty());
   BOOST_TEST(!pq.is_closed());
   BOOST_TEST_EQ(pq.size(), 0);
@@ -85,7 +87,7 @@ void func(steady_clock::time_point pushed, steady_clock::duration dur)
  */
 void test_deque_times()
 {
-    boost::sync_timed_queue<boost::function<void()> > tq;
+    boost::detail::sync_timed_queue<boost::function<void()> > tq;
     for(int i = 0; i < 10; i++)
     {
         steady_clock::duration d = milliseconds(i*100);

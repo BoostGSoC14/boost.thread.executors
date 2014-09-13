@@ -17,7 +17,8 @@
 
 namespace boost
 {
-
+namespace detail
+{
   template <class ValueType,
             class Container = std::vector<ValueType>,
             class Compare = std::less<typename Container::value_type> >
@@ -225,8 +226,8 @@ namespace boost
   }
 #endif
 
-} //end namespace
-
+} //end detail namespace
+} //end boost namespace
 #include <boost/config/abi_suffix.hpp>
 
 #endif

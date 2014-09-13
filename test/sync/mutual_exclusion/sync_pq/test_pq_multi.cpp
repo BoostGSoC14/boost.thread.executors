@@ -2,11 +2,11 @@
 
 #include <boost/thread/thread.hpp>
 #include <boost/thread/barrier.hpp>
-#include <boost/thread/sync_priority_queue.hpp>
+#include <boost/thread/detail/sync_priority_queue.hpp>
 
 #include <boost/core/lightweight_test.hpp>
  
-typedef boost::sync_priority_queue<int> sync_pq;
+typedef boost::detail::sync_priority_queue<int> sync_pq;
 
 int call_pull(sync_pq* q, boost::barrier* go)
 {

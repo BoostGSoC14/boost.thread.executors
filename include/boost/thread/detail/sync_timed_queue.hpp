@@ -2,13 +2,14 @@
 #define BOOST_THREAD_SYNC_TIMED_QUEUE_HPP
 
 #include <boost/chrono/time_point.hpp>
-#include <boost/thread/sync_priority_queue.hpp>
+#include <boost/thread/detail/sync_priority_queue.hpp>
 
 #include <boost/config/abi_prefix.hpp>
 
 namespace boost
 {
-
+namespace detail
+{
   template<typename T>
   struct scheduled_type
   {
@@ -160,8 +161,8 @@ namespace boost
     }
   }
 
-} //end namespace
-
+} //end detail namespace
+} //end boost namespace
 #include <boost/config/abi_suffix.hpp>
 
 #endif

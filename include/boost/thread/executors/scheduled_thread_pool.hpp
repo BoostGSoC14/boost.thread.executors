@@ -1,11 +1,11 @@
 #ifndef SCHEDULED_THREAD_POOL_HPP
 #define SCHEDULED_THREAD_POOL_HPP
 
-#include <boost/thread/executors/scheduled_executor.hpp>
+#include <boost/thread/detail/scheduled_executor_base.hpp>
 
 namespace boost
 {
-  class scheduled_thread_pool : public scheduled_executor
+  class scheduled_thread_pool : public detail::scheduled_executor_base
   {
   private:
     thread_group _workers;
@@ -26,7 +26,7 @@ namespace boost
     }
 
   private:
-    typedef scheduled_executor super;
+    typedef scheduled_executor_base super;
     void worker_loop();
   }; //end class
 
